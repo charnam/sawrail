@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sawrail</title>
+        <style>
+            #woscope {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100vw;
+                height: 100vh;
+                object-fit: contain;
+                background: black;
+                padding: 5vmin;
+                box-sizing: border-box;
+            }
+            #click-banner {
+                position: fixed;
+                font-family: monospace;
+                color: #0f0;
+                z-index: 1000;
+                left: 50vw;
+                top: 50vh;
+                transform: translate(-50%, -50%);
+                width: 100vw;
+                text-align: center;
+                margin: 0;
+                text-shadow: 0 0 5px #0f0;
+                pointer-events: none;
+                opacity: 1;
+                transition: opacity 0.1s ease-in;
+            }
+            body.clicked #click-banner {
+                opacity: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <h1 id="click-banner">Click anywhere to begin</h1>
+        <canvas id="woscope" width="800" height="800"></canvas>
+        <script type="module" src="./index.mjs"></script>
+    </body>
+</html>
