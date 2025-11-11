@@ -6,7 +6,7 @@ function wobble(points, ...n) {
         )
     );
 }
-function transform(points, ...n) {
+function translate(points, ...n) {
     return points.map(vector => 
         vector.map((position, index) => 
             position + (n[index] ?? n[0])
@@ -31,7 +31,7 @@ function rotateDegrees2D(points, degrees) {
 }
 
 export {
-    transform,
+    translate,
     scale,
     wobble,
     rotateRadians2D,

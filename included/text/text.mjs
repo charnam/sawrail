@@ -19,13 +19,13 @@ function polygonizeText(text, options = {}) {
                 x += options.spacing + 1;
             }
             polygons.push(
-                letters[letter].withAppliedEffect(Effects.transform, x, 0)
+                letters[letter].withAppliedEffect(Effects.translate, x, 0)
             );
             x += 1;
         }
     }
     return new PolygonGroup(polygons)
-        .applyEffect(Effects.transform, -x * ["left", "center", "right"].indexOf(options.anchor) * 0.5, 0)
+        .applyEffect(Effects.translate, -x * ["left", "center", "right"].indexOf(options.anchor) * 0.5, 0)
         .applyEffect(Effects.scale, options.widthScale, 1);
 }
 

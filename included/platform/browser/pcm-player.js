@@ -152,26 +152,26 @@
         for (let i = 0; i < length; i++) {
           audioData[i] = this.samples[offset];
           /* fadein */
-          if (i < 50) {
+          /*if (i < 50) {
             audioData[i] = (audioData[i] * i) / 50;
           }
-          /* fadeout*/
+          /* fadeout /
           if (i >= (length - 51)) {
             audioData[i] = (audioData[i] * decrement--) / 50;
-          }
+          }*/
           offset += this.option.channels;
         }
       }
 
-      if (this.startTime < this.audioCtx.currentTime) {
+      /*if (this.startTime < this.audioCtx.currentTime) {
         this.startTime = this.audioCtx.currentTime;
-      }
+      }*/
       // console.log('start vs current ' + this.startTime + ' vs ' + this.audioCtx.currentTime + ' duration: ' + audioBuffer.duration);
       bufferSource.buffer = audioBuffer;
       bufferSource.connect(this.gainNode);
       //bufferSource.connect(this.analyserNode); // bufferSource连接到analyser
       bufferSource.start(this.startTime);
-      this.startTime += audioBuffer.duration;
+      this.startTime += length / this.option.sampleRate;
       this.samples = new Float32Array();
     }
 

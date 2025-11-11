@@ -1,9 +1,12 @@
 
 import Engine from "./included/Engine.mjs";
+import ModedSystem from "./included/ModedSystem.mjs";
 import Polygon from "./included/Polygon.mjs";
 import PolygonGroup from "./included/PolygonGroup.mjs";
 import * as Effects from "./included/Effects.mjs";
 import * as Easing from "./included/easing.mjs";
+
+import input from "./included/input.mjs";
 
 import * as Music from "./music.mjs"
 import polygonizeText from "./included/text/text.mjs";
@@ -12,18 +15,31 @@ import polygonizeText from "./included/text/text.mjs";
 const SAMPLE_RATE = 48000;
 const engine = new Engine(SAMPLE_RATE);
 
-const initialMode = window.location.hash.length > 1 ? window.location.hash.split("#")[1] : "title";
-const modes = {
+let initialMode = typeof window !== "undefined" ? (window.location.hash.split("#")[1]) : process.argv[2];
+
+if(!initialMode)
+    initialMode = "title"
+const system = new ModedSystem({
     "text": {
         init: () => {
             engine.setMusic(Music.debug);
-            return {};
+            return {zoom: 0.05, x: 0, y: 0};
         },
-        loop: () => {
+        loop: state => {
             const group =
-                polygonizeText("QRSTUVWXYZ", {anchor: "right"})
-                    .withAppliedEffect(Effects.scale, 0.1);
+                polygonizeText("ABCDEFGHIJKLMNOPQRSTUVWXYZ", {anchor: "center"})
+                    .withAppliedEffect(Effects.translate, state.x, state.y)
+                    .withAppliedEffect(Effects.scale, state.zoom);
             
+            if(input.pressedButtons.right)
+                state.x -= 0.1 / state.zoom;
+            if(input.pressedButtons.left)
+                state.x += 0.1 / state.zoom;
+            if(input.pressedButtons.secondary)
+                state.zoom /= 1.1;
+            if(input.pressedButtons.primary)
+                state.zoom *= 1.1;
+
             engine.framebuffer = group.toFrameBuffer();
         }
     },
@@ -35,54 +51,92 @@ const modes = {
             return state;
         },
         loop: state => {
+            // Number of seconds since this mode was made visible
             const deltaTime = (Date.now() - state.startTime) / 1000;
 
+            // Animation for polygons / "triangles" in title screen
             let rightPolygon =
                 new Polygon({
                     brightness: 1,
-                    closed: true,
+                    closed: deltaTime < 4,
                     points: [
-                        [0, 0.5],
-                        [0, -1],
+                        [0, -0.5 - 0.5 * (1 - Easing.easeInOut(deltaTime / 4 - 1))],
                         [0.5, 0],
+                        [0, 0.5],
                     ]
                 });
-                /*new Polygon({
-                    brightness: 1,
-                    closed: true,
-                    points: [
-                        [0, 1],
-                        [0, 0],
-                        [-0.5, 0]
-                    ]
-                });*/
-            let leftPolygon = 
-                rightPolygon.withAppliedEffect(Effects.rotateDegrees2D, 180)
             
-            leftPolygon
-                .applyEffect(Effects.transform, -Easing.easeOut(deltaTime), 0);
             rightPolygon
-                .applyEffect(Effects.transform, Easing.easeOut(deltaTime), 0);
+                .applyEffect(Effects.translate, Easing.easeIn(deltaTime/4) / 2, 0);
+
+            let leftPolygon = 
+                rightPolygon.withAppliedEffect(Effects.rotateDegrees2D, 180);
             
-            const text =
-                polygonizeText("SAWRAIL", {anchor: "center"})
-                    .withAppliedEffect(Effects.scale, 0.1);
-            
-            text.brightness = 5;
-            
-            const mainGroup = new PolygonGroup([
+            const polygonsGroup = new PolygonGroup([
                 leftPolygon,
                 rightPolygon,
-                text
             ]);
-            mainGroup
-                .applyEffect(Effects.scale, Easing.easeOut(1-deltaTime))
-                .applyEffect(Effects.wobble, 0.1 * Easing.easeOut(deltaTime % 0.5 * 2))
-                .applyEffect(Effects.scale, 1 - 0.8 * Easing.easeOut(deltaTime % 0.5 * 2))
+            polygonsGroup
+                .applyEffect(Effects.scale, 1, Easing.easeInOut(-deltaTime/4));
 
+            if(deltaTime > 8) {
+                polygonsGroup
+                    .applyEffect(Effects.scale, 1 - 0.8 * Easing.easeOut(deltaTime % 0.5 * 2))
+            }
+
+            // Animation & definition for "SAWRAIL" title text
+            let titleText = "SAWRAIL"
+            
+            for(let letter in titleText) {
+                if(letter == 0) continue;
+                if(Math.random() < 0.1) {
+                    titleText = titleText.slice(0,Math.max(0, letter - 1)) + " " + titleText.slice(letter);
+                }
+            }
+
+            const titleGroup =
+                polygonizeText(titleText, {anchor: "center"})
+                    .withAppliedEffect(Effects.scale, 0.1);
+            
+            titleGroup.brightness = 5;
+            titleGroup
+                .applyEffect(Effects.scale, Easing.easeOut(2-deltaTime/4));
+
+            if(deltaTime > 8)
+                titleGroup.applyEffect(Effects.wobble, 0.08 * Easing.easeOut(deltaTime % 1 * 2))
+            
+            // Join polygons and title, making a new polygon group
+            const logoGroup = new PolygonGroup([
+                polygonsGroup,
+                titleGroup,
+            ]);
+
+            logoGroup.applyEffect(Effects.scale, Easing.easeOut(1-deltaTime));
+
+            // PRESS START / PRESS ENTER text
+            const pressEnterGroup =
+                polygonizeText(deltaTime % 2 < 1 ? "PRESS START" : "PRESS ENTER")
+                    .applyEffect(Effects.scale, 0.05)
+                    .applyEffect(Effects.translate, 0, 0.5);
+
+            pressEnterGroup.brightness = Easing.easeIn(9-deltaTime) * Math.abs(Math.sin(deltaTime * Math.PI)) * 2;
+            
+            // Merge logo and other things
+            const mainGroup = new PolygonGroup([
+                logoGroup,
+                pressEnterGroup
+            ])
+
+            // Return final framebuffer
             engine.framebuffer = mainGroup.toFrameBuffer();
+
+            // Game logic
+            if(input.pressedButtons.start) {
+                system.setMode("text")
+            }
         }
     }
-}
+});
+system.setMode(initialMode);
 
-export { initialMode, modes };
+export default system;

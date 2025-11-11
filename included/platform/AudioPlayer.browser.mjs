@@ -7,13 +7,13 @@ await new Promise(res => {
 });
 document.body.classList.add("clicked");
 
-const FLUSH_TIME = 0.2;
+const FLUSH_TIME = 0.08;
 
-const BUFFER_REPLENISH_AMOUNT = 0.05;
-const BUFFER_REPLENISH_AT_MIN = 0.4;
+const BUFFER_REPLENISH_AMOUNT = 0.02;
+const BUFFER_REPLENISH_AT_MIN = 0.1;
 
 // Amount of time (in seconds) to wait between checks for replenishing audio playback queue
-const QUEUE_CHECK_INTERVAL = 0.05;
+const QUEUE_CHECK_INTERVAL = 0.005;
 
 class AudioPlayer_Browser {
 
@@ -33,7 +33,7 @@ class AudioPlayer_Browser {
             channels: 2, // up/down and left/right
             sampleRate: sampleRate,
             inputCodec: "Float32",
-            flushTime: FLUSH_TIME
+            flushTime: FLUSH_TIME * 1000
         });
         if(getSample === null) {
             this.getSample = (time, channel) => 0;
@@ -53,8 +53,8 @@ class AudioPlayer_Browser {
             }
         });
         setInterval(() => {
-            //console.log(this.audioPlayer.samples);
-            if(this.audioPlayer.startTime > this.audioPlayer.audioCtx.currentTime - BUFFER_REPLENISH_AT_MIN) {
+            const samplesOverdue = this.audioPlayer.audioCtx.currentTime + BUFFER_REPLENISH_AT_MIN - this.currentIndex / this.sampleRate;
+            if(samplesOverdue > BUFFER_REPLENISH_AT_MIN) {
                 const finalBuffer = new Float32Array(this._samplesReplenishTo);
                 for(let i in finalBuffer) {
                     const currentTime = (this.currentIndex + Math.floor(i / 2)) / this.sampleRate;

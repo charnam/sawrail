@@ -27,14 +27,15 @@ class Engine {
                 );
                 lastPoint = point;
                 if(pointOfPolygon === 0) {
-                    return [currentTime, ...point];
+                    return [currentTime, point[0], point[1]];
                 } else {
-                    return [currentTime += dist * polygon.brightness, ...point];
+                    return [currentTime += dist * polygon.brightness, point[0], point[1]];
                 }
             });
         }).flat().map(strange => [
             strange[0] / currentTime,
-            ...strange.filter((_item, index) => index > 0)
+            strange[1],
+            strange[2]
         ]);
     }
 
