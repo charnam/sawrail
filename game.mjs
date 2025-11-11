@@ -11,7 +11,6 @@ import input from "./included/input.mjs";
 import * as Music from "./music.mjs"
 import polygonizeText from "./included/text/text.mjs";
 import generateCircle from "./included/generateCircle.mjs";
-import createClockFace from "./game/generateClockFace.mjs";
 
 // A higher sample rate will result in higher game quality.
 const SAMPLE_RATE = 48000;
