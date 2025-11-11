@@ -21,20 +21,46 @@ let initialMode = typeof window !== "undefined" ? (window.location.hash.split("#
 if(!initialMode)
     initialMode = "title"
 const system = new ModedSystem({
-    "ticktock": {
+    "stage_switch": {
         init: () => {
-            engine.setMusic(Music.ticktock);
+            engine.setMusic(Music.stage_switch);
             return {startTime: Date.now()};
         },
         loop: state => {
+            const textGroup =
+                polygonizeText("WAIT")
+                    .applyEffect(Effects.scale, 0.2)
+                    .applyEffect(Effects.wobble, (Date.now() - state.startTime) / 1000 * 0.1);
+            
+            if(state.startTime < Date.now() - 2000) {
+                const modes = ["ticktock"];
+                system.setMode(modes[Math.floor(Math.random() * modes.length)]);
+            }
+            
+            engine.framebuffer = textGroup.toFrameBuffer();
+        }
+    },
+    "ticktock": {
+        init: () => {
+            engine.setMusic(Music.ticktock(0));
+            return {startTime: Date.now(), stageStartTime: Date.now() + 4000, stage: 0};
+        },
+        loop: state => {
             const deltaTime = (Date.now() - state.startTime) / 1000;
-            const isPlaying = deltaTime > 3;
+            const stageTime = (Date.now() - state.stageStartTime) / 1000;
+            const isPlaying = deltaTime > 4;
+            
+            if(isPlaying && state.stage == 0) {
+                engine.setMusic(Music.ticktock(1));
+                state.stage = 1;
+            }
             
             const countdownText =
                 polygonizeText(
-                    ["THREE", "TWO", "ONE", ""][Math.min(Math.floor(deltaTime), 3)]
+                    ["THREE", "TWO", "ONE", "GO", ""][Math.min(Math.floor(deltaTime), 4)]
                 )
-                .applyEffect(Effects.scale, deltaTime * 0.1);
+                .applyEffect(Effects.wobble, (1-Easing.easeIn(deltaTime/4))/8)
+                .applyEffect(Effects.scale, deltaTime * 0.1)
             
             const clockHand = new Polygon({
                 points: [
@@ -47,33 +73,60 @@ const system = new ModedSystem({
                 ],
                 closed: true,
                 brightness: 1
-            });
-
-            clockHand
-                .applyEffect(Effects.rotateDegrees2D, deltaTime * 360 * isPlaying)
-                .applyEffect(Effects.scale, 0.7);
+            }).applyEffect(Effects.rotateDegrees2D, -90);
 
             const clockOutline = generateCircle(8);
 
             const clockDot = generateCircle(4).withAppliedEffect(Effects.scale, 0.05);
             const clockDots = new PolygonGroup([]);
+            
             const CLOCK_DOT_DISTANCE = 0.8;
-            const CLOCK_DOT_COUNT = 12;
+            const CLOCK_DOT_COUNT = 16;
+            
+            const clockHandCycle = (stageTime * isPlaying / CLOCK_DOT_COUNT * 2 * state.stage) % 1;
+            
+            clockHand
+                .applyEffect(Effects.rotateDegrees2D, clockHandCycle * 360)
+                .applyEffect(Effects.scale, 0.7);
+            
+            const selectedDot = Math.floor(clockHandCycle * CLOCK_DOT_COUNT);
+            
             for(let i = 0; i < CLOCK_DOT_COUNT; i++) {
-                clockDots.polygons.push(
+                const dot = 
                     clockDot
                         .withAppliedEffect(Effects.rotateDegrees2D, 45)
-                        .withAppliedEffect(Effects.rotateDegrees2D, -i/12*360)
+                        .withAppliedEffect(Effects.rotateDegrees2D, -i/CLOCK_DOT_COUNT*360)
                         .withAppliedEffect(Effects.translate, 0, -CLOCK_DOT_DISTANCE)
-                        .withAppliedEffect(Effects.rotateDegrees2D, i/12*360)
-                )
+                        .withAppliedEffect(Effects.rotateDegrees2D, i/CLOCK_DOT_COUNT*360);
+                
+                if(i !== selectedDot) {
+                    if(i > 0)
+                        dot.brightness = 0.1;
+                    else
+                        dot.brightness = 0.4;
+                } else
+                    dot.brightness = Easing.easeOut((clockHandCycle * CLOCK_DOT_COUNT) % 1)
+                
+                clockDots.polygons.push(dot)
             }
-
+            
+            if(input.pressedButtons.primary && isPlaying) {
+                delete input.pressedButtons.primary;
+                const errorMargin = 1 - Math.abs(clockHandCycle - 0.5) * 2;
+                if(errorMargin < 0.05) {
+                    state.stageStartTime = Date.now();
+                    engine.setMusic(Music.ticktock(++state.stage));
+                } else {
+                    system.setMode("stage_switch")
+                }
+            }
+            
             const clockGroup = new PolygonGroup([
                 clockOutline,
                 clockDots,
                 clockHand
             ]);
+            clockGroup.applyEffect(Effects.wobble, 0.01);
             
             const mainGroup = new PolygonGroup([
                 clockGroup,
@@ -156,9 +209,6 @@ const system = new ModedSystem({
             
             for(let letter of titleGroup.polygons) {
                 letter.brightness = Easing.easeOut(Math.random()-0.3);
-                if(Math.random() < 0.1) {
-                    //titleText = titleText.slice(0,Math.max(0, letter - 1)) + " " + titleText.slice(letter);
-                }
             }
 
             titleGroup.brightness = 5;
@@ -195,7 +245,7 @@ const system = new ModedSystem({
 
             // Game logic
             if(input.pressedButtons.start) {
-                system.setMode("text")
+                system.setMode("stage_switch")
             }
         }
     }
