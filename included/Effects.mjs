@@ -22,8 +22,8 @@ function scale(points, ...n) {
 }
 function rotateRadians2D(points, radians) {
     return points.map(point => [
-        Math.cos(radians) * point[0] + Math.sin(radians) * point[1],
-        Math.cos(radians) * point[1] + Math.sin(radians) * point[0]
+        Math.cos(-radians) * point[0] + Math.sin(-radians) * point[1],
+        Math.cos(-radians) * point[1] - Math.sin(-radians) * point[0]
     ])
 }
 function rotateDegrees2D(points, degrees) {

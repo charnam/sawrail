@@ -76,8 +76,13 @@ class Engine {
         this.music = music;
     }
     constructor(frequency) {
+        const cachedMusicValue = [0, 0];
         this.audioPlayer = new AudioPlayer(frequency, (time, channel) => {
-            const output = this.getWaveAt(this.music(time), channel);
+            if(cachedMusicValue[0] !== time) {
+                cachedMusicValue[0] = time;
+                cachedMusicValue[1] = this.music(time);
+            }
+            const output = this.getWaveAt(cachedMusicValue[1], channel);
             return output;
         });
     }

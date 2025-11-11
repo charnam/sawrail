@@ -10,6 +10,8 @@ import input from "./included/input.mjs";
 
 import * as Music from "./music.mjs"
 import polygonizeText from "./included/text/text.mjs";
+import generateCircle from "./included/generateCircle.mjs";
+import createClockFace from "./game/generateClockFace.mjs";
 
 // A higher sample rate will result in higher game quality.
 const SAMPLE_RATE = 48000;
@@ -20,9 +22,71 @@ let initialMode = typeof window !== "undefined" ? (window.location.hash.split("#
 if(!initialMode)
     initialMode = "title"
 const system = new ModedSystem({
+    "ticktock": {
+        init: () => {
+            engine.setMusic(Music.ticktock);
+            return {startTime: Date.now()};
+        },
+        loop: state => {
+            const deltaTime = (Date.now() - state.startTime) / 1000;
+            const isPlaying = deltaTime > 3;
+            
+            const countdownText =
+                polygonizeText(
+                    ["THREE", "TWO", "ONE", ""][Math.min(Math.floor(deltaTime), 3)]
+                )
+                .applyEffect(Effects.scale, deltaTime * 0.1);
+            
+            const clockHand = new Polygon({
+                points: [
+                    [1, 0],
+                    [0, -0.2],
+                    [-0.2, 0],
+                    [0, 0.2],
+                    [1, 0],
+                    [0, 0],
+                ],
+                closed: true,
+                brightness: 1
+            });
+
+            clockHand
+                .applyEffect(Effects.rotateDegrees2D, deltaTime * 360 * isPlaying)
+                .applyEffect(Effects.scale, 0.7);
+
+            const clockOutline = generateCircle(8);
+
+            const clockDot = generateCircle(4).withAppliedEffect(Effects.scale, 0.05);
+            const clockDots = new PolygonGroup([]);
+            const CLOCK_DOT_DISTANCE = 0.8;
+            const CLOCK_DOT_COUNT = 12;
+            for(let i = 0; i < CLOCK_DOT_COUNT; i++) {
+                clockDots.polygons.push(
+                    clockDot
+                        .withAppliedEffect(Effects.rotateDegrees2D, 45)
+                        .withAppliedEffect(Effects.rotateDegrees2D, -i/12*360)
+                        .withAppliedEffect(Effects.translate, 0, -CLOCK_DOT_DISTANCE)
+                        .withAppliedEffect(Effects.rotateDegrees2D, i/12*360)
+                )
+            }
+
+            const clockGroup = new PolygonGroup([
+                clockOutline,
+                clockDots,
+                clockHand
+            ]);
+            
+            const mainGroup = new PolygonGroup([
+                clockGroup,
+                countdownText
+            ])
+
+            engine.framebuffer = mainGroup.toFrameBuffer();
+        }
+    },
     "text": {
         init: () => {
-            engine.setMusic(Music.debug);
+            engine.setMusic(Music.slow);
             return {zoom: 0.05, x: 0, y: 0};
         },
         loop: state => {
@@ -67,7 +131,7 @@ const system = new ModedSystem({
                 });
             
             rightPolygon
-                .applyEffect(Effects.translate, Easing.easeIn(deltaTime/4) / 2, 0);
+                .applyEffect(Effects.translate, Easing.easeIn(deltaTime/2 - 1) / 2, 0);
 
             let leftPolygon = 
                 rightPolygon.withAppliedEffect(Effects.rotateDegrees2D, 180);
@@ -87,23 +151,23 @@ const system = new ModedSystem({
             // Animation & definition for "SAWRAIL" title text
             let titleText = "SAWRAIL"
             
-            for(let letter in titleText) {
-                if(letter == 0) continue;
-                if(Math.random() < 0.1) {
-                    titleText = titleText.slice(0,Math.max(0, letter - 1)) + " " + titleText.slice(letter);
-                }
-            }
-
             const titleGroup =
                 polygonizeText(titleText, {anchor: "center"})
                     .withAppliedEffect(Effects.scale, 0.1);
             
+            for(let letter of titleGroup.polygons) {
+                letter.brightness = Easing.easeOut(Math.random()-0.3);
+                if(Math.random() < 0.1) {
+                    //titleText = titleText.slice(0,Math.max(0, letter - 1)) + " " + titleText.slice(letter);
+                }
+            }
+
             titleGroup.brightness = 5;
             titleGroup
                 .applyEffect(Effects.scale, Easing.easeOut(2-deltaTime/4));
 
             if(deltaTime > 8)
-                titleGroup.applyEffect(Effects.wobble, 0.08 * Easing.easeOut(deltaTime % 1 * 2))
+                titleGroup.applyEffect(Effects.wobble, 0.2 * Easing.easeOut(deltaTime % 1 * 2))
             
             // Join polygons and title, making a new polygon group
             const logoGroup = new PolygonGroup([
@@ -111,7 +175,7 @@ const system = new ModedSystem({
                 titleGroup,
             ]);
 
-            logoGroup.applyEffect(Effects.scale, Easing.easeOut(1-deltaTime));
+            logoGroup.applyEffect(Effects.scale, Easing.easeOut(1-deltaTime/2));
 
             // PRESS START / PRESS ENTER text
             const pressEnterGroup =

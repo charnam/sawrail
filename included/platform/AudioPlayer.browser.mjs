@@ -7,13 +7,18 @@ await new Promise(res => {
 });
 document.body.classList.add("clicked");
 
-const FLUSH_TIME = 0.08;
+// Amount of time to generate sound before outputting to the speakers.
+// High values delay output more, low values can result in speakers "clicking"
+const FLUSH_TIME = 0.01;
 
-const BUFFER_REPLENISH_AMOUNT = 0.02;
-const BUFFER_REPLENISH_AT_MIN = 0.1;
+// Maximum amount of playback time left before replenishing buffer.
+// Should be a lot more than the value of FLUSH_TIME to prevent clicking.
+const BUFFER_REPLENISH_AT_MIN = 0.04;
+// Amount of buffer to replenish at each queue check
+const BUFFER_REPLENISH_AMOUNT = 0.005;
 
 // Amount of time (in seconds) to wait between checks for replenishing audio playback queue
-const QUEUE_CHECK_INTERVAL = 0.005;
+const QUEUE_CHECK_INTERVAL = 0.001;
 
 class AudioPlayer_Browser {
 
@@ -32,14 +37,16 @@ class AudioPlayer_Browser {
         this.audioPlayer = new PCMPlayer({
             channels: 2, // up/down and left/right
             sampleRate: sampleRate,
-            inputCodec: "Float32",
-            flushTime: FLUSH_TIME * 1000
+            encoding: "32bitFloat",
+            flushingTime: FLUSH_TIME * 1000
         });
+
         if(getSample === null) {
             this.getSample = (time, channel) => 0;
         } else {
             this.getSample = getSample;
         }
+
         woscope({
             canvas: document.getElementById("woscope"),
             audioCtx: this.audioPlayer.audioCtx,
@@ -52,9 +59,10 @@ class AudioPlayer_Browser {
                 console.log("woscope failed with error ", msg);
             }
         });
+
         setInterval(() => {
-            const samplesOverdue = this.audioPlayer.audioCtx.currentTime + BUFFER_REPLENISH_AT_MIN - this.currentIndex / this.sampleRate;
-            if(samplesOverdue > BUFFER_REPLENISH_AT_MIN) {
+            const samplesOverdue = this.audioPlayer.audioCtx.currentTime + BUFFER_REPLENISH_AT_MIN - this.audioPlayer.startTime;
+            if(samplesOverdue > 0) {
                 const finalBuffer = new Float32Array(this._samplesReplenishTo);
                 for(let i in finalBuffer) {
                     const currentTime = (this.currentIndex + Math.floor(i / 2)) / this.sampleRate;
