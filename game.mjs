@@ -28,9 +28,9 @@ const system = new ModedSystem({
         },
         loop: state => {
             const textGroup =
-                polygonizeText("WAIT")
-                    .applyEffect(Effects.scale, 0.2)
-                    .applyEffect(Effects.wobble, (Date.now() - state.startTime) / 1000 * 0.1);
+                polygonizeText("NEW GAME")
+                    .applyEffect(Effects.scale, 0.1)
+                    .applyEffect(Effects.wobble, (Date.now() - state.startTime) / 1000 * 0.01);
             
             if(state.startTime < Date.now() - 2000) {
                 const modes = ["ticktock"];
@@ -126,7 +126,9 @@ const system = new ModedSystem({
                 clockDots,
                 clockHand
             ]);
-            clockGroup.applyEffect(Effects.wobble, 0.01);
+            clockGroup
+                .applyEffect(Effects.wobble, 0.01 * state.stage)
+                .applyEffect(Effects.scale, 0.9);
             
             const mainGroup = new PolygonGroup([
                 clockGroup,
@@ -183,7 +185,9 @@ const system = new ModedSystem({
                 });
             
             rightPolygon
-                .applyEffect(Effects.translate, Easing.easeIn(deltaTime/2 - 1) / 2, 0);
+                .applyEffect(Effects.translate, Easing.easeIn(deltaTime/2 - 1) / 4, 0)
+                .applyEffect(Effects.translate, -0.125 * (1 - Easing.easeInOut(deltaTime / 4 - 1)), 0)
+                ;
 
             let leftPolygon = 
                 rightPolygon.withAppliedEffect(Effects.rotateDegrees2D, 180);
@@ -193,7 +197,8 @@ const system = new ModedSystem({
                 rightPolygon,
             ]);
             polygonsGroup
-                .applyEffect(Effects.scale, 1, Easing.easeInOut(-deltaTime/4));
+                .applyEffect(Effects.scale, 1, Easing.easeInOut(-deltaTime/4))
+                .applyEffect(Effects.scale, 1, 1 - 0.2 * (1 - Easing.easeInOut(deltaTime / 4 - 1)))
 
             if(deltaTime > 8) {
                 polygonsGroup
