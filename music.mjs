@@ -28,30 +28,8 @@ function stage_switch(time) {
 	return time * Math.floor(time * 16 + 4)**2.1;
 }
 
-function ticktock(stage) {
+function ticktock(stage, target) {
 	return function(time) {
-		if(stage == 0) {
-			let out = time * Math.floor(time + 1) * 30;
-			if(time % 4 < 3)
-				out *= ((time % 1) * 0.1 + 1);
-			else
-				out *= 1.2;
-			return out;
-		}
-		
-		if(time * stage % 8 >= 6.5 && time * stage % 0.5 < 0.01 * stage) {
-			return time * Math.floor(time * stage % 8) ** 5;
-		}
-		
-		if(time * stage % 1 < 0.01 * stage)
-			time *= 240;
-		else if(time * stage % 0.5 < 0.01 * stage)
-			return time * 120;
-		else if(time * stage % 0.25 < 0.01 * stage)
-			return time * 60;
-		
-		
-		return time * getAbacabaFrequencyAtTime(time*4*stage);
 	}
 }
 
@@ -73,5 +51,6 @@ export {
 	debug,
 	slow,
 	ticktock,
-	stage_switch
+	stage_switch,
+	getAbacabaFrequencyAtTime
 };

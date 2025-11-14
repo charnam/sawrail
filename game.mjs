@@ -22,19 +22,24 @@ if(!initialMode)
     initialMode = "title"
 const system = new ModedSystem({
     "stage_switch": {
-        init: () => {
+        init: (info) => {
             engine.setMusic(Music.stage_switch);
-            return {startTime: Date.now()};
+            return {
+                startTime: Date.now(),
+                text: info.text ?? "ERROR",
+                mode: Array.isArray(info.mode) && info.mode.length >= 1
+                    ? info.mode
+                    : ["title"]
+            };
         },
         loop: state => {
             const textGroup =
-                polygonizeText("NEW GAME")
+                polygonizeText(state.text)
                     .applyEffect(Effects.scale, 0.1)
                     .applyEffect(Effects.wobble, (Date.now() - state.startTime) / 1000 * 0.01);
             
             if(state.startTime < Date.now() - 2000) {
-                const modes = ["ticktock"];
-                system.setMode(modes[Math.floor(Math.random() * modes.length)]);
+                system.setMode(...state.mode);
             }
             
             engine.framebuffer = textGroup.toFrameBuffer();
@@ -42,17 +47,73 @@ const system = new ModedSystem({
     },
     "ticktock": {
         init: () => {
-            engine.setMusic(Music.ticktock(0));
-            return {startTime: Date.now(), stageStartTime: Date.now() + 4000, stage: 0};
+            engine.setMusic(time => {
+                let out = time * Math.floor(time + 1) * 30;
+                if(time % 4 < 3)
+                    out *= ((time % 1) * 0.1 + 1);
+                else
+                    out *= 1.2;
+                return out;
+            });
+            
+            return {
+                startTime: Date.now(),
+                stageStartTime: Date.now() + 4000,
+                stage: 0,
+                startDot: 0,
+                abacabaStartSeq: 0
+            };
         },
         loop: state => {
             const deltaTime = (Date.now() - state.startTime) / 1000;
             const stageTime = (Date.now() - state.stageStartTime) / 1000;
             const isPlaying = deltaTime > 4;
             
+            const CLOCK_DOT_DISTANCE = 0.8;
+            const CLOCK_DOT_COUNT = 16;
+            const STAGE_SPEED_MULTIPLIER = 0.2;
+            
+            const getTimeStageMult = stage => stage * STAGE_SPEED_MULTIPLIER + 0.5;
+            
+            const timeStageMult = getTimeStageMult(state.stage);
+            
+            const setStage = (stage, startDot) => {
+                state.stageStartTime = Date.now();
+                state.stage = stage;
+                state.target = startDot - 1;
+                state.startDot = startDot;
+                let fromOldTargetToNewTarget = state.target - startDot;
+                if(fromOldTargetToNewTarget < 0)
+                    fromOldTargetToNewTarget = CLOCK_DOT_COUNT + fromOldTargetToNewTarget;
+                
+                let timeStageMult = getTimeStageMult(state.stage);
+                state.abacabaStartSeq = state.abacabaStartSeq + Math.floor(stageTime * 4 * timeStageMult);
+                
+                engine.setMusic((time) => {
+                    const BEEP_LENGTH = 0.01;
+                    const currentDotRelativeToTargetWhereTargetIsZero =
+                        ((time * timeStageMult * 2 - fromOldTargetToNewTarget + CLOCK_DOT_COUNT) % CLOCK_DOT_COUNT);
+                    
+                    if((currentDotRelativeToTargetWhereTargetIsZero >= CLOCK_DOT_COUNT - 3.5 ||
+                        currentDotRelativeToTargetWhereTargetIsZero < 1) &&
+                        time * timeStageMult % 0.5 < BEEP_LENGTH * timeStageMult) {
+                        return time * 1024;
+                    }
+                    
+                    if(time * timeStageMult % 1 / timeStageMult < BEEP_LENGTH)
+                        time *= 240;
+                    else if(time * timeStageMult % 0.5 / timeStageMult < BEEP_LENGTH)
+                        return time * 120;
+                    else if(time * timeStageMult % 0.25 / timeStageMult < 0.01)
+                        return time * 480;
+                    
+                    
+                    return time * Music.getAbacabaFrequencyAtTime(state.abacabaStartSeq+time*4*timeStageMult);
+                });
+            }
+            
             if(isPlaying && state.stage == 0) {
-                engine.setMusic(Music.ticktock(1));
-                state.stage = 1;
+                setStage(1, CLOCK_DOT_COUNT);
             }
             
             const countdownText =
@@ -80,10 +141,7 @@ const system = new ModedSystem({
             const clockDot = generateCircle(4).withAppliedEffect(Effects.scale, 0.05);
             const clockDots = new PolygonGroup([]);
             
-            const CLOCK_DOT_DISTANCE = 0.8;
-            const CLOCK_DOT_COUNT = 16;
-            
-            const clockHandCycle = (stageTime * isPlaying / CLOCK_DOT_COUNT * 2 * state.stage) % 1;
+            const clockHandCycle = (stageTime * isPlaying / CLOCK_DOT_COUNT * 2 * timeStageMult + state.startDot / CLOCK_DOT_COUNT) % 1;
             
             clockHand
                 .applyEffect(Effects.rotateDegrees2D, clockHandCycle * 360)
@@ -100,25 +158,14 @@ const system = new ModedSystem({
                         .withAppliedEffect(Effects.rotateDegrees2D, i/CLOCK_DOT_COUNT*360);
                 
                 if(i !== selectedDot) {
-                    if(i > 0)
-                        dot.brightness = 0.1;
-                    else
+                    if(i == state.target)
                         dot.brightness = 0.4;
+                    else
+                        dot.brightness = 0.1;
                 } else
                     dot.brightness = Easing.easeOut((clockHandCycle * CLOCK_DOT_COUNT) % 1)
                 
                 clockDots.polygons.push(dot)
-            }
-            
-            if(input.pressedButtons.primary && isPlaying) {
-                delete input.pressedButtons.primary;
-                const errorMargin = 1 - Math.abs(clockHandCycle - 0.5) * 2;
-                if(errorMargin < 0.05) {
-                    state.stageStartTime = Date.now();
-                    engine.setMusic(Music.ticktock(++state.stage));
-                } else {
-                    system.setMode("stage_switch")
-                }
             }
             
             const clockGroup = new PolygonGroup([
@@ -127,7 +174,7 @@ const system = new ModedSystem({
                 clockHand
             ]);
             clockGroup
-                .applyEffect(Effects.wobble, 0.01 * state.stage)
+                .applyEffect(Effects.wobble, 0.001 * state.stage)
                 .applyEffect(Effects.scale, 0.9);
             
             const mainGroup = new PolygonGroup([
@@ -136,6 +183,25 @@ const system = new ModedSystem({
             ])
 
             engine.framebuffer = mainGroup.toFrameBuffer();
+            
+            if(input.pressedButtons.primary && isPlaying) {
+                delete input.pressedButtons.primary;
+                
+                let distanceToDot = Math.abs(clockHandCycle - (state.target / CLOCK_DOT_COUNT));
+                if(distanceToDot > 0.5) {
+                    distanceToDot = 0.5 - (distanceToDot - 0.5);
+                }
+                
+                if(distanceToDot <= 0.05 || input.pressedButtons.secondary) {
+                    if(state.target !== 0) {
+                        setStage(state.stage + 1, state.target);
+                    } else {
+                        system.setMode("stage_switch", {text: "GOOD JOB", mode: ["ticktock"]})
+                    }
+                } else {
+                    system.setMode("stage_switch", {text: "WHOOPS", mode: ["title"]})
+                }
+            }
         }
     },
     "text": {
@@ -250,7 +316,7 @@ const system = new ModedSystem({
 
             // Game logic
             if(input.pressedButtons.start) {
-                system.setMode("stage_switch")
+                system.setMode("stage_switch", {text: "NEW GAME", mode: ["ticktock"]})
             }
         }
     }
