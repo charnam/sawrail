@@ -70,8 +70,8 @@ const system = new ModedSystem({
             const isPlaying = deltaTime > 4;
             
             const CLOCK_DOT_DISTANCE = 0.8;
-            const CLOCK_DOT_COUNT = 16;
-            const STAGE_SPEED_MULTIPLIER = 0.2;
+            const CLOCK_DOT_COUNT = 8;
+            const STAGE_SPEED_MULTIPLIER = 0.3;
             
             const getTimeStageMult = stage => stage * STAGE_SPEED_MULTIPLIER + 0.5;
             
@@ -94,8 +94,8 @@ const system = new ModedSystem({
                     const currentDotRelativeToTargetWhereTargetIsZero =
                         ((time * timeStageMult * 2 - fromOldTargetToNewTarget + CLOCK_DOT_COUNT) % CLOCK_DOT_COUNT);
                     
-                    if((currentDotRelativeToTargetWhereTargetIsZero >= CLOCK_DOT_COUNT - 3.5 ||
-                        currentDotRelativeToTargetWhereTargetIsZero < 1) &&
+                    if((currentDotRelativeToTargetWhereTargetIsZero >= CLOCK_DOT_COUNT - 3.5
+                        /*|| currentDotRelativeToTargetWhereTargetIsZero < 1*/) &&
                         time * timeStageMult % 0.5 < BEEP_LENGTH * timeStageMult) {
                         return time * 1024;
                     }
